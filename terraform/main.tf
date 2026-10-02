@@ -19,7 +19,7 @@ provider "azurerm" {
 }
 
 data "azurerm_resource_group" "main" {
-  name     = "rg-azure-lab"
+  name = "rg-azure-lab"
 }
 
 resource "azurerm_container_registry" "main" {
