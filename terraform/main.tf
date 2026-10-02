@@ -5,20 +5,27 @@ terraform {
       version = "~> 4.0"
     }
   }
+  backend "azurerm" {
+    resource_group_name  = "rg-terraform-state"
+    storage_account_name = "kawamuratfstatestorage"
+    container_name       = "tfstate"
+    key                  = "terraform.tfstate"
+    use_azuread_auth     = true
+  }
 }
 
 provider "azurerm" {
   features {}
 }
 
-resource "azurerm_resource_group" "main" {
-  name     = "rg-container-apps-lab"
+data "azurerm_resource_group" "main" {
+  name = "rg-azure-lab"
   location = "uksouth"
 }
 
 resource "azurerm_container_registry" "main" {
   name                = "acritsukicontainerlab"
-  resource_group_name = azurerm_resource_group.main.name
+  resource_group_name = data.azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   sku                 = "Basic"
   admin_enabled       = false
