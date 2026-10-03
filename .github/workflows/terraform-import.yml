@@ -1,0 +1,68 @@
+name: Terraform Import
+
+on:
+  workflow_dispatch:
+    inputs:
+      terraform_address:
+        description: "Terraform resource address to import"
+        required: true
+        default: "azurerm_container_app.api"
+      resource_group:
+        description: "Azure resource group"
+        required: true
+        default: "rg-azure-lab"
+      container_app_name:
+        description: "Existing Azure Container App name"
+        required: true
+        default: "ca-azure-api"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform-import:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Get Container App Resource ID
+        id: resource
+        shell: bash
+        run: |
+          RESOURCE_ID=$(az containerapp show \
+            --name "${{ inputs.container_app_name }}" \
+            --resource-group "${{ inputs.resource_group }}" \
+            --query id \
+            --output tsv)
+
+          echo "resource_id=$RESOURCE_ID" >> "$GITHUB_OUTPUT"
+          echo "Importing: $RESOURCE_ID"
+
+      - name: Terraform Import
+        run: |
+          terraform import \
+            "${{ inputs.terraform_address }}" \
+            "${{ steps.resource.outputs.resource_id }}"
+
+      - name: Verify Terraform State
+        run: terraform state show "${{ inputs.terraform_address }}"
