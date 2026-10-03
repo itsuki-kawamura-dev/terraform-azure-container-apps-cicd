@@ -7,7 +7,7 @@ app = Flask(__name__)
 SERVICEBUS_NAMESPACE = "sbns-container-apps-lab.servicebus.windows.net"
 QUEUE_NAME = "jobs"
 
-credential = DefaultAzureCredential(client_id="801f2bd0-c834-41e5-a9ec-5e6cb1809a7e")
+credential = DefaultAzureCredential(client_id=os.environ["AZURE_CLIENT_ID"])
 
 
 @app.route("/")

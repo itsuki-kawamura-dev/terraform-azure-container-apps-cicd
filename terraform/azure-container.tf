@@ -56,9 +56,13 @@ resource "azurerm_container_app" "api" {
   template {
     container {
       name   = "api"
-      image  = "${azurerm_container_registry.main.login_server}/azure-api:v2"
+      image  = "${azurerm_container_registry.main.login_server}/azure-api:v3"
       cpu    = 0.25
       memory = "0.5Gi"
+      env {
+        name  = "AZURE_CLIENT_ID"
+        value = azurerm_user_assigned_identity.container_app.client_id
+      }
     }
 
     min_replicas = 1
