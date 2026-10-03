@@ -56,7 +56,7 @@ resource "azurerm_container_app" "api" {
   template {
     container {
       name   = "api"
-      image  = "${azurerm_container_registry.main.login_server}/azure-api:v4"
+      image  = "${azurerm_container_registry.main.login_server}/azure-api:v5"
       cpu    = 0.25
       memory = "0.5Gi"
       env {
