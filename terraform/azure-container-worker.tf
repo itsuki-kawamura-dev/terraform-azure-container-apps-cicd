@@ -14,6 +14,11 @@ resource "azurerm_role_assignment" "worker_acr_pull" {
   role_definition_name = "AcrPull"
   principal_id         = azurerm_user_assigned_identity.worker.principal_id
 }
+resource "azurerm_role_assignment" "worker_blob_contributor" {
+  scope                = azurerm_storage_account.main.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_user_assigned_identity.worker.principal_id
+}
 
 resource "azurerm_container_app" "worker" {
   name                         = "ca-azure-worker"
@@ -34,7 +39,7 @@ resource "azurerm_container_app" "worker" {
   template {
     container {
       name   = "worker"
-      image  = "${azurerm_container_registry.main.login_server}/azure-worker:v1"
+      image  = "${azurerm_container_registry.main.login_server}/azure-worker:v2"
       cpu    = 0.25
       memory = "0.5Gi"
 
