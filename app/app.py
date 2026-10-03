@@ -1,3 +1,4 @@
+import os
 from flask import Flask, jsonify, request
 from azure.identity import DefaultAzureCredential
 from azure.servicebus import ServiceBusClient, ServiceBusMessage
