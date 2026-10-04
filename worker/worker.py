@@ -38,8 +38,8 @@ with ServiceBusClient(
             body = json.loads(str(message))
 
             ### for testing purposes, we can simulate a failure by checking the task type
-            if body["task"] == "fail":
-                raise Exception("test error")
+            ###if body["task"] == "fail":
+            ###    raise Exception("test error")
 
             blob_name = f"{uuid.uuid4()}.txt"
 
