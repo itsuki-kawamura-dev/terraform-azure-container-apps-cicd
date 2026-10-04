@@ -1,5 +1,6 @@
 import os
 import uuid
+import json
 
 from azure.identity import DefaultAzureCredential
 from azure.servicebus import ServiceBusClient
@@ -34,6 +35,8 @@ with ServiceBusClient(
         for message in receiver:
             print(f"Received: {message}", flush=True)
 
+            body = json.loads(message)
+
             blob_name = f"{uuid.uuid4()}.txt"
 
             blob_client = blob_service_client.get_blob_client(
@@ -41,11 +44,15 @@ with ServiceBusClient(
                 blob=blob_name
             )
 
-            blob_client.upload_blob(
-                str(message),
-                overwrite=True
-            )
+try:
+    blob_client.upload_blob(
+        json.dumps(body),
+        overwrite=True
+    )
 
-            print(f"Saved to Blob: {blob_name}", flush=True)
+    print(f"Saved to Blob: {blob_name}", flush=True)
 
-            receiver.complete_message(message)ss
+    receiver.complete_message(message)
+
+except Exception as e:
+    print(f"Failed to process message: {e}", flush=True)

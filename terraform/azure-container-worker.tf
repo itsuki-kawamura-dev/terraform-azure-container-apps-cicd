@@ -70,4 +70,10 @@ resource "azurerm_container_app" "worker" {
     azurerm_role_assignment.servicebus_receiver,
     azurerm_role_assignment.worker_acr_pull
   ]
+
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image
+    ]
+  }
 }

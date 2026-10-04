@@ -1,4 +1,5 @@
 import os
+import json
 from flask import Flask, jsonify, request
 from azure.identity import DefaultAzureCredential
 from azure.servicebus import ServiceBusClient, ServiceBusMessage
@@ -29,7 +30,7 @@ def health():
 def create_job():
     body = request.get_json(silent=True) or {}
 
-    message = ServiceBusMessage(str(body))
+    message = ServiceBusMessage(json.dumps(body))
 
     with ServiceBusClient(
         fully_qualified_namespace=SERVICEBUS_NAMESPACE,
