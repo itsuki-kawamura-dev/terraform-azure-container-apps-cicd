@@ -35,7 +35,7 @@ with ServiceBusClient(
         for message in receiver:
             print(f"Received: {message}", flush=True)
 
-            body = json.loads(message)
+            body = json.loads(str(message))
 
             blob_name = f"{uuid.uuid4()}.txt"
 
