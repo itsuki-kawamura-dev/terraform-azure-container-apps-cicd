@@ -1,0 +1,80 @@
+name: Bootstrap Azure Environment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACR_NAME: acritsukicontainerlab
+  API_IMAGE: azure-api:v5
+  WORKER_IMAGE: azure-worker:v2
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init
+
+      - name: Terraform Format Check
+        working-directory: ./terraform
+        run: terraform fmt -check -diff
+
+      - name: Terraform Validate
+        working-directory: ./terraform
+        run: terraform validate
+
+      # Container Apps cannot be created until their images exist.
+      # Create only ACR first, then build/push the images, then apply everything.
+      - name: Create ACR first
+        working-directory: ./terraform
+        run: terraform apply -target=azurerm_container_registry.main -auto-approve -input=false
+
+      - name: Login to ACR
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build API image
+        run: |
+          docker build \
+            -f app/Dockerfile \
+            -t "$ACR_NAME.azurecr.io/$API_IMAGE" \
+            app
+
+      - name: Push API image
+        run: docker push "$ACR_NAME.azurecr.io/$API_IMAGE"
+
+      - name: Build Worker image
+        run: |
+          docker build \
+            -f worker/Dockerfile \
+            -t "$ACR_NAME.azurecr.io/$WORKER_IMAGE" \
+            worker
+
+      - name: Push Worker image
+        run: docker push "$ACR_NAME.azurecr.io/$WORKER_IMAGE"
+
+      - name: Terraform Plan
+        working-directory: ./terraform
+        run: terraform plan -input=false
+
+      - name: Terraform Apply All
+        working-directory: ./terraform
+        run: terraform apply -auto-approve -input=false
