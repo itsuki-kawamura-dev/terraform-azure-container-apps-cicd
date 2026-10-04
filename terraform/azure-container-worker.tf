@@ -49,8 +49,21 @@ resource "azurerm_container_app" "worker" {
       }
     }
 
-    min_replicas = 1
-    max_replicas = 1
+    min_replicas = 0
+    max_replicas = 3
+      custom_scale_rule {
+    name             = "servicebus-queue"
+    custom_rule_type = "azure-servicebus"
+
+    metadata = {
+      queueName    = "jobs"
+      namespace    = "sbns-container-apps-lab"
+      messageCount = "5"
+    }
+
+    # Managed Identityで認証
+    identity_id = azurerm_user_assigned_identity.worker.id
+  }
   }
 
   depends_on = [
