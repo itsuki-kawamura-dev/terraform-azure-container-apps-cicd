@@ -37,6 +37,10 @@ with ServiceBusClient(
 
             body = json.loads(str(message))
 
+            ### for testing purposes, we can simulate a failure by checking the task type
+            if body["task"] == "fail":
+                raise Exception("test error")
+
             blob_name = f"{uuid.uuid4()}.txt"
 
             blob_client = blob_service_client.get_blob_client(
@@ -56,3 +60,12 @@ try:
 
 except Exception as e:
     print(f"Failed to process message: {e}", flush=True)
+
+    if message.delivery_count >= 3:
+        receiver.dead_letter_message(
+            message,
+            reason="ProcessingFailed",
+            error_description=str(e)
+        )
+    else:
+        receiver.abandon_message(message)
