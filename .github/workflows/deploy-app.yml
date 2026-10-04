@@ -1,0 +1,127 @@
+name: Deploy Application
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - "app/**"
+      - "worker/**"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACR_NAME: acritsukicontainerlab
+  RESOURCE_GROUP: rg-azure-lab
+  API_APP_NAME: ca-azure-api
+  WORKER_APP_NAME: ca-azure-worker
+
+jobs:
+  build-api:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build and push API image
+        run: |
+          IMAGE="$ACR_NAME.azurecr.io/azure-api:${{ github.sha }}"
+          docker build -f app/Dockerfile -t "$IMAGE" app
+          docker push "$IMAGE"
+
+  build-worker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build and push Worker image
+        run: |
+          IMAGE="$ACR_NAME.azurecr.io/azure-worker:${{ github.sha }}"
+          docker build -f worker/Dockerfile -t "$IMAGE" worker
+          docker push "$IMAGE"
+
+  deploy:
+    needs:
+      - build-api
+      - build-worker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Azure Login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy API image
+        run: |
+          az containerapp update \
+            --name "$API_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$ACR_NAME.azurecr.io/azure-api:${{ github.sha }}"
+
+      - name: Deploy Worker image
+        run: |
+          az containerapp update \
+            --name "$WORKER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$ACR_NAME.azurecr.io/azure-worker:${{ github.sha }}"
+
+  verify:
+    needs: deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Azure Login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify deployed images
+        run: |
+          API_IMAGE=$(az containerapp show \
+            --name "$API_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "properties.template.containers[0].image" \
+            -o tsv)
+
+          WORKER_IMAGE=$(az containerapp show \
+            --name "$WORKER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "properties.template.containers[0].image" \
+            -o tsv)
+
+          echo "API image: $API_IMAGE"
+          echo "Worker image: $WORKER_IMAGE"
+
+          test "$API_IMAGE" = "$ACR_NAME.azurecr.io/azure-api:${{ github.sha }}"
+          test "$WORKER_IMAGE" = "$ACR_NAME.azurecr.io/azure-worker:${{ github.sha }}"
